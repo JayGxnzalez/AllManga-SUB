@@ -197,6 +197,21 @@ async function allanimeGet(variables, hash, customHeaders) {
     }
 }
 
+// Cross-platform timeout using async polling — avoids setTimeout for Luna/Sora compatibility
+async function withTimeout(promise, ms) {
+    var start = Date.now();
+    var resolved = false;
+    var result = null;
+    var error = null;
+    promise.then(function(v) { resolved = true; result = v; }).catch(function(e) { resolved = true; error = e; });
+    while (!resolved) {
+        if (Date.now() - start >= ms) return null;
+        await new Promise(function(r) { r(); });
+    }
+    if (error) return null;
+    return result;
+}
+
 // Extracts subtitle tracks from a clock.json links array.
 // AllManga returns subtitles as an array under links[0].subtitles (or links[i].subtitles)
 // each entry: { label, src, srcLang } or { label, file, language }
@@ -228,14 +243,14 @@ async function resolveStreamUrl(source) {
         if (decoded.indexOf('http') !== 0) return null;
 
         if (decoded.indexOf('clock.json') !== -1) {
-            var res = await soraFetch(decoded, {
+            var res = await withTimeout(soraFetch(decoded, {
                 method: 'GET',
                 headers: {
                     'User-Agent': ALLANIME_UA,
                     'Referer': 'https://allanime.day/player.html',
                     'Origin': 'https://allanime.day'
                 }
-            });
+            }), 8000);
             if (!res) return null;
             var text = typeof res.text === 'function' ? await res.text() : null;
             if (!text) return null;
