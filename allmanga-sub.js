@@ -197,9 +197,6 @@ async function allanimeGet(variables, hash, customHeaders) {
     }
 }
 
-// Extracts subtitle tracks from a clock.json links array.
-// AllManga returns subtitles as an array under links[0].subtitles (or links[i].subtitles)
-// each entry: { label, src, srcLang } or { label, file, language }
 function extractSubtitlesFromLinks(links) {
     var subtitles = [];
     if (!links || !links.length) return subtitles;
@@ -228,7 +225,7 @@ async function resolveStreamUrl(source) {
         if (decoded.indexOf('http') !== 0) return null;
 
         if (decoded.indexOf('clock.json') !== -1) {
-            var res = await soraFetch(decoded, {
+            var fetchPromise = soraFetch(decoded, {
                 method: 'GET',
                 headers: {
                     'User-Agent': ALLANIME_UA,
@@ -236,6 +233,8 @@ async function resolveStreamUrl(source) {
                     'Origin': 'https://allanime.day'
                 }
             });
+            var timeoutPromise = new Promise(function(resolve) { setTimeout(function() { resolve(null); }, 8000); });
+            var res = await Promise.race([fetchPromise, timeoutPromise]);
             if (!res) return null;
             var text = typeof res.text === 'function' ? await res.text() : null;
             if (!text) return null;
@@ -252,7 +251,6 @@ async function resolveStreamUrl(source) {
             return null;
         }
 
-        // Direct URL
         return {
             title: source.sourceName || 'Server',
             streamUrl: decoded,
@@ -384,7 +382,6 @@ async function extractStreamUrl(slug) {
                 streamUrl: results[i].streamUrl,
                 headers: results[i].headers
             });
-            // Merge subtitles across all servers, deduplicating by URL
             if (results[i].subtitles && results[i].subtitles.length) {
                 for (var s = 0; s < results[i].subtitles.length; s++) {
                     var sub = results[i].subtitles[s];
