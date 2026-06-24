@@ -228,7 +228,7 @@ async function resolveStreamUrl(source) {
         if (decoded.indexOf('http') !== 0) return null;
 
         if (decoded.indexOf('clock.json') !== -1) {
-            var fetchPromise = soraFetch(decoded, {
+            var res = await soraFetch(decoded, {
                 method: 'GET',
                 headers: {
                     'User-Agent': ALLANIME_UA,
@@ -236,8 +236,6 @@ async function resolveStreamUrl(source) {
                     'Origin': 'https://allanime.day'
                 }
             });
-            var timeoutPromise = new Promise(function(resolve) { setTimeout(function() { resolve(null); }, 8000); });
-            var res = await Promise.race([fetchPromise, timeoutPromise]);
             if (!res) return null;
             var text = typeof res.text === 'function' ? await res.text() : null;
             if (!text) return null;
